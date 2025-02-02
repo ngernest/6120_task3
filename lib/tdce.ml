@@ -20,8 +20,10 @@ let get_dest (instr : instr) : dest option =
   | Call (dest_opt, _, _) -> dest_opt
   | _ -> None
 
-(** Removes instructions from [func] that are never used as arguments to any
-    other instruction, returning a pair consisting of: 
+(** Removes instructions from [func] whose results are never used 
+    as arguments to any other instruction. 
+    
+    This function returns a pair consisting of: 
     - a [bool] indicating whether the function changed 
     - a list of updated instructions (updated basic blocks) *)
 let trivial_dce_pass (func : func) : bool * block list =
