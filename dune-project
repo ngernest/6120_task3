@@ -1,22 +1,18 @@
 (lang dune 3.16)
 
-(name bril_getting_started)
+(name 6120_task3)
 
 (generate_opam_files true)
 
 (source
- (github username/reponame))
+ (github ngernest/6120_task3))
 
 (authors "Author Name")
 
-(maintainers "Maintainer Name")
-
 (license LICENSE)
 
-(documentation https://url/to/documentation)
-
 (package
- (name bril_getting_started)
+ (name 6120_task3)
  (synopsis "A short synopsis")
  (description "A longer description")
  (depends

@@ -2,13 +2,11 @@
 opam-version: "2.0"
 synopsis: "A short synopsis"
 description: "A longer description"
-maintainer: ["Maintainer Name"]
 authors: ["Author Name"]
 license: "LICENSE"
 tags: ["topics" "to describe" "your" "project"]
-homepage: "https://github.com/username/reponame"
-doc: "https://url/to/documentation"
-bug-reports: "https://github.com/username/reponame/issues"
+homepage: "https://github.com/ngernest/6120_task3"
+bug-reports: "https://github.com/ngernest/6120_task3/issues"
 depends: [
   "ppx_quick_test" {>= "v0.17.0"}
   "base_quickcheck" {>= "v0.17.0"}
@@ -33,4 +31,4 @@ build: [
     "@doc" {with-doc}
   ]
 ]
-dev-repo: "git+https://github.com/username/reponame.git"
+dev-repo: "git+https://github.com/ngernest/6120_task3.git"
