@@ -1,4 +1,4 @@
-# CS 6120 Lesson 3: Local Analysis & Optimziation
+# CS 6120 Lesson 3: Local Analysis & Optimization
 
 This repo contains a (WIP) OCaml implementation of the tasks for [Lesson 3](https://www.cs.cornell.edu/courses/cs6120/2025sp/lesson/3/).
 
