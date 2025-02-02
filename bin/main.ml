@@ -1,1 +1,1 @@
-let () = Lib.Cfg.build_cfg ()
+let () = print_endline "hello world!"

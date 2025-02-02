@@ -3,8 +3,4 @@
  (name main)
  (libraries lib core))
 
-(executable
- (public_name nops)
- (name nops)
- (libraries lib))
  
