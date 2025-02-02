@@ -47,7 +47,10 @@ type literal =
   | LitBool of bool
 [@@deriving sexp, equal, quickcheck]
 
-(** Converts a [literal] to its equivalent Yojson representation *)
+(** Converts a [literal] to its equivalent Yojson representation 
+    - Note: if an OCaml [int64] can't be converted to an OCaml [int], 
+      we represent this in JSON using [Yojson.Safe.t]'s [`Intlit] constructor 
+      (which takes in the string representation of an [int64]) *)
 let json_of_literal : literal -> Yojson.Safe.t = function
   | LitInt i -> (
     match Int64.to_int i with
@@ -237,7 +240,7 @@ let get_value (json : Yojson.Safe.t) : literal =
   let value = json $! "value" in
   match value with
   | `Int i -> LitInt (Int64.of_int i)
-  | `Intlit bigint -> LitInt (Int64.of_string bigint)
+  | `Intlit int64_string -> LitInt (Int64.of_string int64_string)
   | `Bool b -> LitBool b
   | _ -> failwith (spf "Invalid value %s" (to_string value))
 
