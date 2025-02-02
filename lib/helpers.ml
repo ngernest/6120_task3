@@ -25,3 +25,10 @@ let list_of_json (json : Yojson.Safe.t) : Yojson.Safe.t list =
   match json with
   | `Null -> []
   | _ -> Yojson.Safe.Util.to_list json
+
+(** Removes all keys from [xs] in the association list [xys], using the 
+    supplied equality function [equal] *)
+let remove_keys (xs : 'a list) ~equal:(eq : 'a -> 'a -> bool)
+  (xys : ('a * 'b) list) : ('a * 'b) list =
+  let open Core in
+  List.fold xs ~init:xys ~f:(fun acc x -> List.Assoc.remove acc ~equal:eq x)

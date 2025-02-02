@@ -1,5 +1,6 @@
 open Core
 open Base_quickcheck
+open Generator
 open Syntax
 
 (* -------------------------------------------------------------------------- *)
@@ -61,4 +62,41 @@ let%quick_test "round-trip property for unop serialization" =
  fun (unop : unop) ->
   let result = unop_of_string (string_of_unop unop) in
   assert (equal_unop unop result);
+  [%expect {| |}]
+
+(* -------------------------------------------------------------------------- *)
+(*                       Properties for helper functions                      *)
+(* -------------------------------------------------------------------------- *)
+
+let%expect_test "unit test for remove_keys" =
+  Printexc.record_backtrace false;
+  let lhs =
+    Helpers.remove_keys [ 1; 2; 3 ] ~equal:Int.equal
+      [ (1, 'a'); (5, 'e'); (2, 'b'); (4, 'd'); (3, 'c') ] in
+  let rhs = [ (5, 'e'); (4, 'd') ] in
+  assert (List.equal [%equal: int * char] lhs rhs);
+  [%expect {| |}]
+
+let%quick_test "[remove_keys] results in association lists that are the same \
+                length or shorter" =
+ fun (keys : (int list[@generator list small_strictly_positive_int]))
+   (assoc_list :
+     ((int * char) list
+     [@generator list (both small_strictly_positive_int char)])) ->
+  let result = Helpers.remove_keys keys ~equal:Int.equal assoc_list in
+  assert (List.length result <= List.length assoc_list);
+  [%expect {| |}]
+
+let%quick_test "the keys in the resultant association list produced by \
+                [remove_keys] are a subset of the original assoc list's keys" =
+ fun (keys : (int list[@generator list small_strictly_positive_int]))
+   (assoc_list :
+     ((int * char) list
+     [@generator list (both small_strictly_positive_int char)])) ->
+  let original_keys = List.map ~f:fst assoc_list in
+  let resultant_keys =
+    List.map ~f:fst (Helpers.remove_keys keys ~equal:Int.equal assoc_list) in
+  assert (
+    List.for_all resultant_keys ~f:(fun k ->
+        List.mem original_keys k ~equal:Int.equal));
   [%expect {| |}]
