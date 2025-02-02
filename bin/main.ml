@@ -1,1 +1,1 @@
-let () = print_endline "hello world!"
+let () = Lib.Tdce.tdce_pipeline ()

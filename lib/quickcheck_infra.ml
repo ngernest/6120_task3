@@ -69,6 +69,7 @@ let%quick_test "round-trip property for unop serialization" =
 (* -------------------------------------------------------------------------- *)
 
 let%expect_test "unit test for remove_keys" =
+  (* Suppress stack trace in order to make expect tests reproducible *)
   Printexc.record_backtrace false;
   let lhs =
     Helpers.remove_keys [ 1; 2; 3 ] ~equal:Int.equal
