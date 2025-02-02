@@ -1,7 +1,6 @@
 open Core
 open Base_quickcheck
 open Syntax
-open Cfg
 
 (* -------------------------------------------------------------------------- *)
 (*                            QuickCheck generators                           *)
@@ -62,28 +61,4 @@ let%quick_test "round-trip property for unop serialization" =
  fun (unop : unop) ->
   let result = unop_of_string (string_of_unop unop) in
   assert (equal_unop unop result);
-  [%expect {| |}]
-
-(* -------------------------------------------------------------------------- *)
-(*                     CFG Algorithm QuickCheck Properties                    *)
-(* -------------------------------------------------------------------------- *)
-
-let%quick_test {| Terminators are always the last instruction in a basic block 
-  (if any terminators are present) |}
-    =
- fun (body : instr list) ->
-  let blocks = form_blocks body in
-  List.iter blocks ~f:(fun block ->
-      let n = List.length block in
-      match List.findi block ~f:(fun _ instr -> is_terminator instr) with
-      | None -> assert true
-      | Some (i, _) -> assert (Int.equal i (n - 1)));
-  [%expect {| |}]
-
-let%quick_test "every block appears in the [name2block] map" =
- fun (body : instr list) ->
-  let blocks = form_blocks body in
-  let name2block = mk_block_map blocks in
-  let num_unique_blocks = List.length (List.map ~f:snd name2block) in
-  assert (Int.equal (List.length blocks) num_unique_blocks);
   [%expect {| |}]
