@@ -24,7 +24,7 @@ let quickcheck_generator_literal : literal Generator.t =
   let open Let_syntax in
   weighted_union
     [
-      (0.8, small_strictly_positive_int >>| fun i -> LitInt i);
+      (0.8, small_strictly_positive_int >>| fun i -> LitInt (Int64.of_int i));
       (0.2, [%quickcheck.generator: bool] >>| fun b -> LitBool b);
     ]
 

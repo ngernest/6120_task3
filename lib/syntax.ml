@@ -37,15 +37,22 @@ let string_of_ty : ty -> string = function
 (*                                  Literals                                  *)
 (* -------------------------------------------------------------------------- *)
 
-(** Literal values (int & bool values) *)
+(** Literal values (int & bool values) 
+    - Note: literal ints are represented using [int64] since Bril ints are 
+      64-bit integers & the Bril TypeScript compiler uses TS's [bigint] type
+      {i https://capra.cs.cornell.edu/bril/tools/ts2bril.html}
+*)
 type literal =
-  | LitInt of int
+  | LitInt of int64
   | LitBool of bool
 [@@deriving sexp, equal, quickcheck]
 
 (** Converts a [literal] to its equivalent Yojson representation *)
 let json_of_literal : literal -> Yojson.Safe.t = function
-  | LitInt i -> `Int i
+  | LitInt i -> (
+    match Int64.to_int i with
+    | Some small_int -> `Int small_int
+    | None -> `Intlit (Int64.to_string i))
   | LitBool b -> `Bool b
 
 (* -------------------------------------------------------------------------- *)
@@ -229,7 +236,8 @@ let get_labels (json : Yojson.Safe.t) : arg list =
 let get_value (json : Yojson.Safe.t) : literal =
   let value = json $! "value" in
   match value with
-  | `Int i -> LitInt i
+  | `Int i -> LitInt (Int64.of_int i)
+  | `Intlit bigint -> LitInt (Int64.of_string bigint)
   | `Bool b -> LitBool b
   | _ -> failwith (spf "Invalid value %s" (to_string value))
 
