@@ -57,6 +57,11 @@ let rec trivial_dce (func : func) : func =
   if has_changed then trivial_dce func
   else { func with instrs = List.concat updated_blocks }
 
+(* TODO: implement [drop_killed_local]
+   (https://github.com/sampsyo/bril/blob/1a67f2cd0912d9b723790dfaef97e910b1cae81b/examples/tdce.py#L57C5-L57C22)
+   (i.e. instructions in a single block whose result is unused before the next
+   assignment) *)
+
 let tdce_pipeline () : unit =
   (* Load a Bril program (as JSON) from [stdin] *)
   let json = load_json () in
