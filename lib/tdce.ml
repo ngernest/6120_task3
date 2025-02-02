@@ -46,7 +46,7 @@ let trivial_dce_pass (func : func) : bool * block list =
               | None -> true
               | Some (dest_var, _) -> List.mem used dest_var ~equal:equal_arg)
         in
-        (* Record whether we actually removed any instructions*)
+        (* Record whether we actually removed any instructions *)
         changed := Int.equal (List.length new_block) (List.length block);
         new_block) in
   (!changed, updated_blocks)
@@ -55,7 +55,7 @@ let trivial_dce_pass (func : func) : bool * block list =
     instructions left to remove *)
 let rec trivial_dce (func : func) : func =
   let has_changed, updated_blocks = trivial_dce_pass func in
-  (* Keep iterating trivial DCE until our function doesn't chang e*)
+  (* Keep iterating trivial DCE until our function doesn't change *)
   if has_changed then trivial_dce func
   else { func with instrs = List.concat updated_blocks }
 
