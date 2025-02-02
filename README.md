@@ -11,8 +11,8 @@ This repo contains a (WIP) OCaml implementation of the tasks for [Lesson 3](http
 
 ## Code overview:
 - [`syntax.ml`](./lib/syntax.ml): Type definitions for Bril programs + functions for converting from Bril's JSON representation to OCaml types
-  - Note: we only support the [*core* Bril instructions](https://capra.cs.cornell.edu/bril/lang/core.html) for now
-  (translated from the Python code discussed in-class)
+  - Note: we only support the [*core* Bril instructions](https://capra.cs.cornell.edu/bril/lang/core.html)
+- [`cfg.ml`](./lib/cfg.ml): The algorithm for forming basic blocks & building control flow graphs (from Lesson 2)   
 - [`quickcheck_infra.ml`](./lib/quickcheck_infra.ml): QuickCheck generators for Bril types & QC properties for serialization
 - [`helpers.ml`](./lib/helpers.ml): Helper functions for dealing with JSON 
 
