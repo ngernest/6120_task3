@@ -44,7 +44,7 @@ type literal =
 [@@deriving sexp, equal, quickcheck]
 
 (** Converts a [literal] to its equivalent Yojson representation *)
-let json_of_literal : literal -> Yojson.Basic.t = function
+let json_of_literal : literal -> Yojson.Safe.t = function
   | LitInt i -> `Int i
   | LitBool b -> `Bool b
 
@@ -58,7 +58,7 @@ type dest = string * ty [@@deriving sexp, equal, quickcheck]
 
 (** Converts a destination variable to an association list
     mapping JSON field names to Yojson JSON objects *)
-let json_of_dest ((varname, ty) : dest) : (string * Yojson.Basic.t) list =
+let json_of_dest ((varname, ty) : dest) : (string * Yojson.Safe.t) list =
   [ ("dest", `String varname); ("type", `String (string_of_ty ty)) ]
 
 (* -------------------------------------------------------------------------- *)
@@ -208,25 +208,25 @@ type func = {
 (*                           Extracting JSON fields                           *)
 (* -------------------------------------------------------------------------- *)
 
-open Yojson.Basic.Util
+open Yojson.Safe.Util
 
 (* ---------------------------- For instructions ---------------------------- *)
 
 (** Retrieves the contents of the ["args"] field in a JSON object 
     as a list of strings  *)
-let get_instr_args (json : Yojson.Basic.t) : arg list =
+let get_instr_args (json : Yojson.Safe.t) : arg list =
   let args_list = Helpers.list_of_json (json $! "args") in
   List.map ~f:to_string args_list
 
 (** Retrieves the contents of the ["fields"] field in a JSON object 
     as a list of strings  *)
-let get_labels (json : Yojson.Basic.t) : arg list =
+let get_labels (json : Yojson.Safe.t) : arg list =
   let labels_list = Helpers.list_of_json (json $! "labels") in
   List.map ~f:to_string labels_list
 
 (** Retrieves the contents of the ["value"] field in a JSON object
     as a Bril literal (either an int or a bool) *)
-let get_value (json : Yojson.Basic.t) : literal =
+let get_value (json : Yojson.Safe.t) : literal =
   let value = json $! "value" in
   match value with
   | `Int i -> LitInt i
@@ -235,22 +235,22 @@ let get_value (json : Yojson.Basic.t) : literal =
 
 (** Retrieves the name and type of the destination variable
     from a JSON object *)
-let get_dest (json : Yojson.Basic.t) : dest =
+let get_dest (json : Yojson.Safe.t) : dest =
   let dest_string = to_string (json $! "dest") in
   let ty = ty_of_string @@ to_string (json $! "type") in
   (dest_string, ty)
 
 (** Retrieves the contents of the ["funcs"] field in a JSON object
     as a string list (list of function names) *)
-let get_funcs (json : Yojson.Basic.t) : string list =
+let get_funcs (json : Yojson.Safe.t) : string list =
   List.map ~f:to_string (Helpers.list_of_json (json $! "funcs"))
 
 (* ------------------------------ For functions ----------------------------- *)
 
 (** Extracts the ["name"] field in a JSON object 
     (this is used for Bril functions only) *)
-let get_name (json : Yojson.Basic.t) : string =
-  let open Yojson.Basic in
+let get_name (json : Yojson.Safe.t) : string =
+  let open Yojson.Safe in
   match json $! "name" with
   | `String name -> name
   | `Null -> failwith (spf "Missing name field in %s\n" (pretty_to_string json))
@@ -258,8 +258,8 @@ let get_name (json : Yojson.Basic.t) : string =
 
 (** Retrieves the optional ["type"] field in a JSON object as a [ty option] 
     (this is used for Bril functions only) *)
-let get_type_option (json : Yojson.Basic.t) : ty option =
-  let open Yojson.Basic in
+let get_type_option (json : Yojson.Safe.t) : ty option =
+  let open Yojson.Safe in
   match json $! "type" with
   | `String ty_name -> Some (ty_of_string ty_name)
   | `Null -> None
@@ -269,8 +269,8 @@ let get_type_option (json : Yojson.Basic.t) : ty option =
     as an association list of type [(arg * ty) list] 
     - If the function has no arguments, the empty list is returned
     *)
-let get_func_args (json : Yojson.Basic.t) : (arg * ty) list =
-  let open Yojson.Basic in
+let get_func_args (json : Yojson.Safe.t) : (arg * ty) list =
+  let open Yojson.Safe in
   match json $! "args" with
   | `List arg_objs ->
     List.map arg_objs ~f:(fun arg_obj ->
@@ -287,7 +287,7 @@ let get_func_args (json : Yojson.Basic.t) : (arg * ty) list =
 (* -------------------------------------------------------------------------- *)
 
 (** Converts a JSON object to an [instr] *)
-let instr_of_json (json : Yojson.Basic.t) : instr =
+let instr_of_json (json : Yojson.Safe.t) : instr =
   match json $! "label" with
   | `String label -> Label label
   | `Null ->
@@ -342,12 +342,12 @@ let instr_of_json (json : Yojson.Basic.t) : instr =
       else Call (None, func_name, args)
     else if is_nop opcode then Nop
     else failwith (spf "Invalid opcode : %s" opcode)
-  | _ -> failwith (spf "Invalid JSON : %s" (Yojson.Basic.pretty_to_string json))
+  | _ -> failwith (spf "Invalid JSON : %s" (Yojson.Safe.pretty_to_string json))
 
 (** Retrieves the ["instrs"] field in a JSON object as a [instr list]
     (this is used for Bril functions only) *)
-let get_instrs (json : Yojson.Basic.t) : instr list =
-  let open Yojson.Basic in
+let get_instrs (json : Yojson.Safe.t) : instr list =
+  let open Yojson.Safe in
   match json $! "instrs" with
   | `List instrs -> List.map ~f:instr_of_json instrs
   | `Null ->
@@ -355,7 +355,7 @@ let get_instrs (json : Yojson.Basic.t) : instr list =
   | _ -> failwith (spf "Invalid json %s\n" (pretty_to_string json))
 
 (** Converts a Bril function JSON object to the [func] type *)
-let func_of_json (json : Yojson.Basic.t) : func =
+let func_of_json (json : Yojson.Safe.t) : func =
   let name = get_name json in
   let args = get_func_args json in
   let ret_type = get_type_option json in
@@ -367,11 +367,11 @@ let func_of_json (json : Yojson.Basic.t) : func =
 (* -------------------------------------------------------------------------- *)
 
 (** Converts a list of OCaml strings to a JSON string list *)
-let mk_json_string_list (xs : string list) : Yojson.Basic.t =
+let mk_json_string_list (xs : string list) : Yojson.Safe.t =
   `List (List.map ~f:(fun x -> `String x) xs)
 
 (** Converts a Bril instruction to its Yojson JSON representation *)
-let json_of_instr (instr : instr) : Yojson.Basic.t =
+let json_of_instr (instr : instr) : Yojson.Safe.t =
   match instr with
   | Label label -> `Assoc [ ("label", `String label) ]
   | Const (dest, literal) ->
@@ -421,7 +421,7 @@ let json_of_instr (instr : instr) : Yojson.Basic.t =
       @ dest_json)
 
 (** Converts a Bril function to its Yojson JSON representation *)
-let json_of_func (func : func) : Yojson.Basic.t =
+let json_of_func (func : func) : Yojson.Safe.t =
   let json_args =
     List.map
       ~f:(fun (name, ty) ->
@@ -448,5 +448,5 @@ let json_of_func (func : func) : Yojson.Basic.t =
 type prog = func list
 
 (** Converts a Bril program to its JSON representation *)
-let json_of_prog (prog : prog) : Yojson.Basic.t =
+let json_of_prog (prog : prog) : Yojson.Safe.t =
   `Assoc [ ("functions", `List (List.map ~f:json_of_func prog)) ]
