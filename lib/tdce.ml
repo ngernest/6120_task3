@@ -32,7 +32,7 @@ let get_dest (instr : instr) : dest option =
     This function returns a pair consisting of: 
     - a [bool] indicating whether the function changed 
     - a list of updated instructions (updated basic blocks) *)
-let trivial_dce_pass (func : func) : bool * block list =
+let trivial_dce_pass (func : func) : bool * func =
   (* Build the basic blocks for this function *)
   let blocks : block list = form_blocks func.instrs in
   (* Mark all variables that appear as an argument to an instruction as used *)
@@ -55,15 +55,15 @@ let trivial_dce_pass (func : func) : bool * block list =
         (* Record whether we actually removed any instructions *)
         changed := Int.equal (List.length new_block) (List.length block);
         new_block) in
-  (!changed, updated_blocks)
+  (!changed, { func with instrs = List.concat updated_blocks})
 
 (** Iteratively removes dead instructions, stopping when there are no
     instructions left to remove *)
 let rec trivial_dce (func : func) : func =
-  let has_changed, updated_blocks = trivial_dce_pass func in
+  let has_changed, updated_func = trivial_dce_pass func in
   (* Keep iterating trivial DCE until our function doesn't change *)
   if has_changed then trivial_dce func
-  else { func with instrs = List.concat updated_blocks }
+  else updated_func
 
 (** Delete instructions in a single block whose result is unused
     before the next assignment. Return a bool indicating whether
@@ -112,15 +112,23 @@ let drop_killed_pass (func : func) : bool * func =
   in 
   (changed, { func with instrs = List.concat blocks' })
 
-
-
+(** Invokes both [trivial_dce_pass] & [drop_killed_pass] *)  
+let tdce_plus (func : func) : func =
+  let rec loop (fn : func) : bool -> func = function
+    | false -> fn
+    | true ->
+      let (chgd, fn') = trivial_dce_pass fn in
+      let (chgd', fn'') = drop_killed_pass fn' in 
+      loop fn'' (chgd || chgd') in 
+  loop func true
+  
 let tdce_pipeline () : unit =
   (* Load a Bril program (as JSON) from [stdin] *)
   let json = load_json () in
   (* Convert the JSON to our typed representation *)
   let functions =
     List.map ~f:func_of_json (list_of_json (json $! "functions")) in
-  (* Apply trivial DCE *)
-  let updated_prog : prog = List.map ~f:trivial_dce functions in
+  (* Apply both trivial DCE & dropping killed instructions *)
+  let updated_prog = List.map ~f:tdce_plus functions in
   (* Convert the optimization program to JSON & write to stdout *)
   Yojson.Safe.pretty_to_channel stdout (json_of_prog updated_prog)
