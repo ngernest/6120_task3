@@ -65,10 +65,13 @@ let rec trivial_dce (func : func) : func =
   if has_changed then trivial_dce func
   else { func with instrs = List.concat updated_blocks }
 
+(** Delete instructions in a single block whose result is unused
+    before the next assignment. Return a bool indicating whether
+    anything changed, along with the updated block *)
 let drop_killed_local (block : block) : bool * block =
   let changed, to_delete, _ = 
    List.foldi
-    block
+    (List.rev block)
     ~init:(false, IntSet.empty, StrMap.empty)
     ~f:(fun id (changed, to_delete, unused_assigned_at) instr -> 
       let changed', to_delete', unused_assigned_at' =
@@ -95,6 +98,20 @@ let drop_killed_local (block : block) : bool * block =
     false, block
   else
     changed, List.filteri block ~f:(fun i _ -> not (IntSet.mem i to_delete))
+
+(** Drop killed instructions from all blocks within a function *)    
+let drop_killed_pass (func : func) : bool * func =
+  let (changed, blocks') =
+   List.fold
+    (List.rev (form_blocks func.instrs))
+      ~init:(false, [])
+      ~f:(fun (changed, blocks) block ->
+        let (blk_changed, block') = drop_killed_local block in
+        changed || blk_changed, block' :: blocks
+      )
+  in 
+  (changed, { func with instrs = List.concat blocks' })
+
 
 
 let tdce_pipeline () : unit =
