@@ -3,6 +3,12 @@ open Syntax
 open Core
 open Cfg
 
+(** A module of int sets *)
+module IntSet = Stdlib.Set.Make(Int)
+
+(** A module of maps from [string] to [int] *)
+module StrMap = Stdlib.Map.Make(String)
+
 (** Extracts the list of arguments from an instruction
     - If the instruction has no arguments, the empty list is returned *)
 let get_args (instr : instr) : arg list =
@@ -59,10 +65,37 @@ let rec trivial_dce (func : func) : func =
   if has_changed then trivial_dce func
   else { func with instrs = List.concat updated_blocks }
 
-(* TODO: implement [drop_killed_local]
-   (https://github.com/sampsyo/bril/blob/1a67f2cd0912d9b723790dfaef97e910b1cae81b/examples/tdce.py#L57C5-L57C22)
-   (i.e. instructions in a single block whose result is unused before the next
-   assignment) *)
+let drop_killed_local (block : block) : bool * block =
+  let changed, to_delete, _ = 
+   List.foldi
+    block
+    ~init:(false, IntSet.empty, StrMap.empty)
+    ~f:(fun id (changed, to_delete, unused_assigned_at) instr -> 
+      let changed', to_delete', unused_assigned_at' =
+        match get_dest instr with
+        | Some (var, _) ->
+          let unused_assigned_at' = StrMap.add var id unused_assigned_at in
+          begin match StrMap.find_opt var unused_assigned_at with 
+          | Some id' -> true, IntSet.add id' to_delete, unused_assigned_at'
+          | None -> changed, to_delete, unused_assigned_at'
+          end
+        | None -> changed, to_delete, unused_assigned_at 
+      in
+      let args = get_args instr in 
+      let unused_assigned_at'' =
+        List.fold
+          args
+          ~init:unused_assigned_at'
+          ~f:(fun acc arg -> StrMap.filter (fun var _ -> not (String.equal var arg)) acc)
+      in
+      changed', to_delete', unused_assigned_at''
+    )
+  in
+  if not changed then
+    false, block
+  else
+    changed, List.filteri block ~f:(fun i _ -> not (IntSet.mem i to_delete))
+
 
 let tdce_pipeline () : unit =
   (* Load a Bril program (as JSON) from [stdin] *)
