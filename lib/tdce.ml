@@ -71,7 +71,7 @@ let rec trivial_dce (func : func) : func =
 let drop_killed_local (block : block) : bool * block =
   let changed, to_delete, _ = 
    List.foldi
-    (List.rev block)
+    block
     ~init:(false, IntSet.empty, StrMap.empty)
     ~f:(fun id (changed, to_delete, unused_assigned_at) instr -> 
       let changed', to_delete', unused_assigned_at' =
@@ -103,11 +103,11 @@ let drop_killed_local (block : block) : bool * block =
 let drop_killed_pass (func : func) : bool * func =
   let (changed, blocks') =
    List.fold
-    (List.rev (form_blocks func.instrs))
+    (form_blocks func.instrs)
       ~init:(false, [])
       ~f:(fun (changed, blocks) block ->
         let (blk_changed, block') = drop_killed_local block in
-        changed || blk_changed, block' :: blocks
+        changed || blk_changed, List.append blocks [block']
       )
   in 
   (changed, { func with instrs = List.concat blocks' })
@@ -119,9 +119,6 @@ let tdce_plus (func : func) : func =
     | true ->
       let (chgd, fn') = trivial_dce_pass fn in
       let (chgd', fn'') = drop_killed_pass fn' in 
-      printf "Looping with fn:\n  %s\n" (Sexp.to_string_hum ([%sexp_of: func] fn));
-      printf "chgd = %b\n" chgd;
-      printf "chgd' = %b\n" chgd';
       loop fn'' (chgd || chgd') in 
   loop func true
   
