@@ -53,7 +53,7 @@ let trivial_dce_pass (func : func) : bool * func =
               | Some (dest_var, _) -> List.mem used dest_var ~equal:equal_arg)
         in
         (* Record whether we actually removed any instructions *)
-        changed := Int.equal (List.length new_block) (List.length block);
+        changed := not (Int.equal (List.length new_block) (List.length block));
         new_block) in
   (!changed, { func with instrs = List.concat updated_blocks})
 
@@ -119,6 +119,9 @@ let tdce_plus (func : func) : func =
     | true ->
       let (chgd, fn') = trivial_dce_pass fn in
       let (chgd', fn'') = drop_killed_pass fn' in 
+      printf "Looping with fn:\n  %s\n" (Sexp.to_string_hum ([%sexp_of: func] fn));
+      printf "chgd = %b\n" chgd;
+      printf "chgd' = %b\n" chgd';
       loop fn'' (chgd || chgd') in 
   loop func true
   
