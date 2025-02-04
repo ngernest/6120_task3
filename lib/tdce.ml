@@ -103,11 +103,11 @@ let drop_killed_local (block : block) : bool * block =
 let drop_killed_pass (func : func) : bool * func =
   let (changed, blocks') =
    List.fold
-    (form_blocks func.instrs)
+    (List.rev (form_blocks func.instrs))
       ~init:(false, [])
       ~f:(fun (changed, blocks) block ->
         let (blk_changed, block') = drop_killed_local block in
-        changed || blk_changed, List.append blocks [block']
+        changed || blk_changed, block' :: blocks
       )
   in 
   (changed, { func with instrs = List.concat blocks' })
