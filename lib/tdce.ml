@@ -26,6 +26,17 @@ let get_dest (instr : instr) : dest option =
   | Call (dest_opt, _, _) -> dest_opt
   | _ -> None
 
+(** Determines whether [instr] may have an effect. Instructions
+    without a destination may have an effect, as well as
+    instructions that make a call to another function *)
+let has_eff (instr : instr) : bool =
+  match get_dest instr with
+  | None -> true
+  | Some _ ->
+      match instr with
+      | Call _ -> true
+      | _ -> false
+
 (** Removes instructions from [func] whose results are never used 
     as arguments to any other instruction. 
     
@@ -43,17 +54,20 @@ let trivial_dce_pass (func : func) : bool * func =
   let changed = ref false in
   let updated_blocks =
     List.map blocks ~f:(fun block ->
-        (* Keep all effect instructions (those whose [dest] is [None]) and
-           instructions whose destinations appear in the [used] set *)
+        (* Keep all effect instructions and instructions whose
+           destinations appear in the [used] set *)
         let new_block =
           List.filter block ~f:(fun instr ->
-              let dest_opt = get_dest instr in
-              match dest_opt with
-              | None -> true
-              | Some (dest_var, _) -> List.mem used dest_var ~equal:equal_arg)
+              let dst_used =
+                Option.for_all (get_dest instr)
+                  ~f:(fun (dst, _) -> List.mem used dst ~equal:equal_arg)
+              in
+              has_eff instr || dst_used
+          )
         in
         (* Record whether we actually removed any instructions *)
-        changed := not (Int.equal (List.length new_block) (List.length block));
+        changed := !changed ||
+          not (Int.equal (List.length new_block) (List.length block));
         new_block) in
   (!changed, { func with instrs = List.concat updated_blocks})
 
@@ -62,7 +76,7 @@ let trivial_dce_pass (func : func) : bool * func =
 let rec trivial_dce (func : func) : func =
   let has_changed, updated_func = trivial_dce_pass func in
   (* Keep iterating trivial DCE until our function doesn't change *)
-  if has_changed then trivial_dce func
+  if has_changed then trivial_dce updated_func
   else updated_func
 
 (** Delete instructions in a single block whose result is unused
@@ -129,6 +143,6 @@ let tdce_pipeline () : unit =
   let functions =
     List.map ~f:func_of_json (list_of_json (json $! "functions")) in
   (* Apply both trivial DCE & dropping killed instructions *)
-  let updated_prog = List.map ~f:tdce_plus functions in
+  let updated_prog = List.map ~f:trivial_dce functions in
   (* Convert the optimization program to JSON & write to stdout *)
   Yojson.Safe.pretty_to_channel stdout (json_of_prog updated_prog)
