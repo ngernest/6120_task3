@@ -101,6 +101,7 @@ let last_writes (instrs : instr list) : (instr * bool) list =
     (List.rev instrs) in 
   out
 
+(** Generates a fresh variable that is not in the existing set of [vars] *)
 let mk_gen_fresh_var (vars: StrSet.t) () : unit -> string =
   let count = ref (-1) in
   fun () ->
@@ -111,6 +112,7 @@ let mk_gen_fresh_var (vars: StrSet.t) () : unit -> string =
     in
     loop () |> (^) "v"
 
+(** Extracts the set of variables used in a functino s*)
 let vars_of_func (fn : func) : StrSet.t =
   List.fold_left (fun vars instr ->
     get_dest instr
@@ -118,19 +120,22 @@ let vars_of_func (fn : func) : StrSet.t =
     |> Option.value ~default:vars
   ) StrSet.empty fn.instrs
 
+
 (** Implements local value numbering *)  
 let lvn (fn: func) : func =
+
+  (** Helper function used to generate fresh variables that are
+      not within the current set of variabls used by [fn] *)
   let gen_fresh_var = mk_gen_fresh_var (vars_of_func fn) () in
 
   let instrs, _, _ =
     List.fold_left
       (fun (instrs, env, tbl) (instr, is_last_write) ->
-        (* If the [instr] isn't an [op], just copy it over to the new
-           list of instructions *)
-        if not (is_op instr) then 
+        (* If the [instr] isn't an [op], or the [instr] has an effect
+          (this includes function calls), 
+          just copy it over to the new list of instructions *)
+        if (not (is_op instr)) || has_eff instr then 
           (instr :: instrs, env, tbl)
-        else if has_eff instr then
-          failwith "TODO"
         else (
           let v = mk_value instr env in
           let dst, _ as dest = get_dest instr |> Option.get in
@@ -144,6 +149,12 @@ let lvn (fn: func) : func =
                 overwritten later), we need to generate a fresh variable name
                - otherwise we can just keep [dst] *)
             let dst' = if not is_last_write then gen_fresh_var () else dst in
+
+            (* Update args with their current values according to the 
+               [env] and [tbl] *)
+            let args = List.map (fun arg -> 
+              let row_idx = StrMap.find arg env in 
+              snd (IntMap.find row_idx tbl)) (get_args instr) in 
 
             (* TODO generate new instruction using dst', env, and tbl *)
             let ins = failwith "TODO" in
@@ -162,6 +173,4 @@ let lvn (fn: func) : func =
       ([], StrMap.empty, IntMap.empty)
       (last_writes fn.instrs)
   in
-      
-  (* TODO: implement *)
   { fn with instrs = List.rev instrs }
