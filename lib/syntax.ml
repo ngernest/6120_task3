@@ -476,6 +476,12 @@ let get_args (instr : instr) : arg list =
   | Ret (Some arg) -> [ arg ]
   | Ret None | Nop | Label _ | Const _ | Jmp _ -> []
 
+let get_lbls (instr : instr) : label list =
+  match instr with
+  | Br (_, lbl1, lbl2) -> [lbl1; lbl2]
+  | Jmp lbl -> [lbl]
+  | _ -> []
+
 (** Extracts the destination (if one exists) of an instruction *)
 let get_dest (instr : instr) : dest option =
   match instr with

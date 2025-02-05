@@ -101,6 +101,29 @@ let last_writes (instrs : instr list) : (instr * bool) list =
     (List.rev instrs) in 
   out
 
+(** Create a new instruction from an original instruction by modifying
+   its [args] with the table of [value]s.
+*)
+let mk_instr (ins: instr) (_: dest) (op: op) (env: env) (tbl: tbl) : instr =
+  let _ = get_lbls ins in
+  let _ =
+    List.map (fun arg ->
+      match StrMap.find_opt arg env with
+      | Some row -> IntMap.find row tbl |> snd
+      | None -> arg
+    ) (get_args ins)
+  in
+  match op with
+  | Binop _ -> failwith "TODO: ..."
+  | Unop _ -> failwith "TODO: ..."
+  | Ret -> failwith "TODO: ..."
+  | Print -> failwith "TODO: ..."
+  | Nop -> failwith "TODO: ..."
+  | Call -> failwith "TODO: ..."
+  | Const -> failwith "TODO: ..."
+  | Jmp -> failwith "TODO: ..."
+  | Br -> failwith "TODO: ..."
+
 let mk_gen_fresh_var (vars: StrSet.t) () : unit -> string =
   let count = ref (-1) in
   fun () ->
@@ -127,35 +150,33 @@ let lvn (fn: func) : func =
       (fun (instrs, env, tbl) (instr, is_last_write) ->
         (* If the [instr] isn't an [op], just copy it over to the new
            list of instructions *)
-        if not (is_op instr) then 
+        if not (is_op instr) then
           (instr :: instrs, env, tbl)
         else if has_eff instr then
           failwith "TODO"
         else (
-          let v = mk_value instr env in
-          let dst, _ as dest = get_dest instr |> Option.get in
+          let (op, _) as v = mk_value instr env in
+          let dst, dst_ty as dest = get_dest instr |> Option.get in
           begin match find_value v tbl with
           | None ->
-            (* Compute a fresh value number, i.e. 1 greater than 
+            (* Compute a fresh value number, i.e. 1 greater than
                the current size of the table *)
-            let row = IntMap.cardinal tbl + 1 in 
+            let row = IntMap.cardinal tbl + 1 in
             (* Figure out the actual destination of the instruction:
-               - if it's not the last_write (i.e. the instr will be 
-                overwritten later), we need to generate a fresh variable name
+               - if it's not the last_write (i.e. the instruction will
+                 be overwritten later), we generate a fresh variable name
                - otherwise we can just keep [dst] *)
             let dst' = if not is_last_write then gen_fresh_var () else dst in
 
-            (* TODO generate new instruction using dst', env, and tbl *)
-            let ins = failwith "TODO" in
+            let instr' = mk_instr instr (dst', dst_ty) op env tbl in
 
-            (ins :: instrs, StrMap.add dst' row env, IntMap.add row (v, dst') tbl)
+            instr' :: instrs, StrMap.add dst' row env, IntMap.add row (v, dst') tbl
           | Some row ->
             (* The value already exists in the table, 
                so we can just rebuild the instruction as a 
                [Id var] instruction *)
             let (_, var) = IntMap.find row tbl in
-            let ins : instr = Unop (dest, Id, var) in 
-            (ins :: instrs, StrMap.add dst row env, tbl)
+            Unop (dest, Id, var) :: instrs, StrMap.add dst row env, tbl
           end
         )
       )
