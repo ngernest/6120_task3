@@ -88,33 +88,35 @@ let drop_killed_local (block : block) : bool * block =
     block
     ~init:(false, IntSet.empty, StrMap.empty)
     ~f:(fun id (changed, to_delete, unused_assigned_at) instr ->
-      let changed', to_delete', unused_assigned_at' =
+      let args = get_args instr in 
+      (* Remove variables used by this instruction from set of
+         unused variables *)
+      let unused_assigned_at' =
+        List.fold
+          args
+          ~init:unused_assigned_at
+          ~f:(fun acc arg -> StrMap.filter (fun var _ -> not (String.equal var arg)) acc)
+      in
+      let changed', to_delete', unused_assigned_at'' =
         match get_dest instr with
         | Some (var, _) ->
           (* Add variable assigned to by instruction to set of unusued
              variables (keeping track of where the variable was last
              assigned at) -- as long as the instruction has no effect *)
-          let unused_assigned_at' =
+          let unused_assigned_at'' =
             if has_eff instr then
-              unused_assigned_at
+              unused_assigned_at'
             else
-              StrMap.add var id unused_assigned_at
+              StrMap.add var id unused_assigned_at'
           in
           (* If variable had been assigned to before, delete instruction
              that has been "killed" by this assignment *)
-          begin match StrMap.find_opt var unused_assigned_at with 
-          | Some id' -> true, IntSet.add id' to_delete, unused_assigned_at'
-          | None -> changed, to_delete, unused_assigned_at'
+          begin match StrMap.find_opt var unused_assigned_at' with 
+          | Some id' -> true, IntSet.add id' to_delete, unused_assigned_at''
+          | None -> changed, to_delete, unused_assigned_at''
           end
         (* If instruction does not write to a variable, move on *)
-        | None -> changed, to_delete, unused_assigned_at 
-      in
-      let args = get_args instr in 
-      let unused_assigned_at'' =
-        List.fold
-          args
-          ~init:unused_assigned_at'
-          ~f:(fun acc arg -> StrMap.filter (fun var _ -> not (String.equal var arg)) acc)
+        | None -> changed, to_delete, unused_assigned_at'
       in
       changed', to_delete', unused_assigned_at''
     )
