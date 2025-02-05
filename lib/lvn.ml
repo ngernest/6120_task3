@@ -1,5 +1,4 @@
 open Syntax
-open Helpers
 
 (** Datatype that represents any Bril operation 
     (i.e. any instruction that isn't a label) *)
@@ -103,59 +102,34 @@ let last_writes (instrs : instr list) : (instr * bool) list =
   out
 
 (** Create a new instruction from an original instruction by modifying
-    its [args] with the table of [value]s.
+    its [arg]s with the table of [value]s, and optionally updating its
+    destination.
 *)
-let mk_instr (ins: instr) (dest: dest) (op: op) (env: env) (tbl: tbl) : instr =
-  let labels = get_lbls ins in
-  let args =
-    List.map (fun arg ->
-      match StrMap.find_opt arg env with
-      | Some row -> IntMap.find row tbl |> snd
-      | None -> arg) 
-      (get_args ins)
+let mk_instr ?dest:(dest_opt=None) (ins: instr) (env: env) (tbl: tbl) : instr =
+  (* Search for argument's canonical variable name in table *)
+  let from_tbl = fun arg ->
+    match StrMap.find_opt arg env with
+    | Some row -> IntMap.find row tbl |> snd
+    | None -> arg
   in
-  match op with
-  | Binop binop -> 
-    begin match args with 
-    | [arg1; arg2] -> Binop (dest, binop, arg1, arg2) 
-    | _ -> failwith (spf "Binop %s has incorrect no. of args" 
-        (Base.Sexp.to_string_hum ([%sexp_of: binop] binop)))
-    end
-  | Unop unop -> 
-    begin match args with 
-    | [arg] -> Unop (dest, unop, arg) 
-    | _ -> failwith (spf "Unop %s has incorrect no. of args" 
-      (Base.Sexp.to_string_hum ([%sexp_of: unop] unop)))
-    end 
-  | Ret -> 
-    begin match args with 
-    | [] -> Ret None 
-    | [arg] -> Ret (Some arg)
-    | _ -> failwith "Ret has too many args"
-    end
-  | Print -> Print args 
+  (* Prefer [dest_opt] over the instruction's original destination *)
+  let or_ = fun dest -> Option.value dest_opt ~default:dest in
+  match ins with
+  | Const (dest, literal) -> Const (or_ dest, literal)
+  | Binop (dest, bop, arg1, arg2) ->
+      Binop (or_ dest, bop, from_tbl arg1, from_tbl arg2)
+  | Unop (dest, uop, arg) -> Unop (or_ dest, uop, from_tbl arg)
+  | Jmp lbl -> Jmp lbl
+  | Br (arg, lbl1, lbl2) -> Br (from_tbl arg, lbl1, lbl2)
+  | Ret arg_opt -> Ret (Option.map from_tbl arg_opt)
+  | Print args -> Print (List.map from_tbl args)
+  | Call (dest_opt, name, args) ->
+      begin match dest_opt with
+      | None -> Call (None, name, List.map from_tbl args)
+      | Some dest -> Call (Some (or_ dest), name, List.map from_tbl args)
+      end
   | Nop -> Nop
-  | Call -> 
-    begin match ins with 
-    | Call (None, func_name, _) -> Call (None, func_name, args)
-    | Call (Some _, func_name, _) -> Call (Some dest, func_name, args)
-    | _ -> failwith "mk_instr was called with op = Call but instr != Call"
-    end
-  | Const -> 
-    begin match ins with 
-    | Const (_, literal) -> Const (dest, literal)
-    | _ -> failwith "mk_instr was called with op = Const but instr != Const"
-    end
-  | Jmp -> 
-    begin match labels with 
-    | [lbl] -> Jmp lbl 
-    | _ -> failwith "Jmp has an incorrect no. of labels"
-    end
-  | Br -> 
-    begin match labels, args with 
-    | [lbl1; lbl2], [arg] -> Br (arg, lbl1, lbl2)
-    | _ -> failwith "Br has an incorrect no. of labels / args"
-    end
+  | Label _ -> failwith "mk_instr called on label instruction"
 
 (** Generates a fresh variable that is not in the existing set of [vars] *)
 let mk_gen_fresh_var (vars: StrSet.t) () : unit -> string =
@@ -176,21 +150,24 @@ let vars_of_func (fn : func) : StrSet.t =
     |> Option.value ~default:vars
   ) StrSet.empty fn.instrs
 
-(** Implements local value numbering *)  
-let lvn (fn: func) : func =
-  let gen_fresh_var = mk_gen_fresh_var (vars_of_func fn) () in
-
-  let instrs, _, _ =
+(** Implements local value numbering for a basic block *)
+let lvn_block (gen_fresh_var : unit -> string) (instrs: instr list) : instr list =
+  let instrs', _, _ =
     List.fold_left
-      (fun (instrs, env, tbl) (instr, is_last_write) ->
+      (fun (instrs', env, tbl) (instr, is_last_write) ->
          (* If the [instr] isn't an [op], just copy it over to the new
            list of instructions *)
         if not (is_op instr) then
-          (instr :: instrs, env, tbl)
+          (instr :: instrs', env, tbl)
+        (* If the [instr] has an effect, do not save its value in
+           the table but still use the table to overwrite its
+           args *)
         else if has_eff instr then
-          failwith "TODO"
+          let instr' = mk_instr instr env tbl in
+          (instr' :: instrs', env, tbl)
+        (* Otherwise this is a constant/value operation *)
         else (
-          let (op, _) as v = mk_value instr env in
+          let v = mk_value instr env in
           let dst, dst_ty as dest = get_dest instr |> Option.get in
           begin match find_value v tbl with
           | None ->
@@ -203,20 +180,29 @@ let lvn (fn: func) : func =
                - otherwise we can just keep [dst] *)
             let dst' = if not is_last_write then gen_fresh_var () else dst in
 
-            let instr' = mk_instr instr (dst', dst_ty) op env tbl in
+            let instr' = mk_instr instr env tbl ~dest:(Some (dst', dst_ty)) in
 
-            instr' :: instrs, StrMap.add dst' row env, IntMap.add row (v, dst') tbl
+            instr' :: instrs', StrMap.add dst' row env, IntMap.add row (v, dst') tbl
           | Some row ->
             (* The value already exists in the table, 
                so we can just rebuild the instruction as a 
                [Id var] instruction *)
             let (_, var) = IntMap.find row tbl in
-            Unop (dest, Id, var) :: instrs, StrMap.add dst row env, tbl
+            Unop (dest, Id, var) :: instrs', StrMap.add dst row env, tbl
           end
         )
       )
       ([], StrMap.empty, IntMap.empty)
-      (last_writes fn.instrs)
+      (last_writes instrs)
   in
+  List.rev instrs'
       
-  { fn with instrs = List.rev instrs }
+(** Implements local value numbering for a function *)
+let lvn (fn: func) : func =
+  let gen_fresh_var = mk_gen_fresh_var (vars_of_func fn) () in
+
+  { fn with instrs =
+    Cfg.form_blocks (fn.instrs)
+    |> List.map (lvn_block gen_fresh_var)
+    |> List.concat
+  }
