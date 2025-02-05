@@ -1,5 +1,5 @@
 open Syntax
-   
+
 (** Datatype that represents any Bril operation 
     (i.e. any instruction that isn't a label) *)
 type op = 
@@ -67,22 +67,80 @@ let mk_value (instr : instr) (env : env) : value =
     let op = op_of_instr instr in 
     (op, val_args)
 
-(** Checks whether a value tuple exists in a table, returning a bool *)    
-let is_value_in_table (value : value) (tbl : tbl) : bool = 
-  IntMap.exists (fun _ (v, _) -> v = value) tbl
-    
+(** Checks whether a value tuple exists in a table, returning the
+    row index in the table containing that value if it exists *)    
+let find_value (v : value) (tbl : tbl) : int option = 
+  IntMap.fold (fun idx (v', _) -> function
+    | None -> if v = v' then Some idx else None
+    | Some idx' -> Some idx'
+  ) tbl None
+
+(** A module for sets of strings *)  
+module StringSet = Set.Make(String)
+
+(** Given a list of instructions, [is_last_write] determines 
+    if that instruction is the last write for that variable, 
+    returning a new list which pairs each [instr] with a corresponding bool *)  
+let last_writes (instrs : instr list) : (instr * bool) list = 
+  let seen = StringSet.empty in 
+  let (_, out) = List.fold_left (fun (seen, acc) instr -> 
+    let dest = get_dest instr in 
+    match dest with 
+    | Some (arg, _) -> 
+      begin match StringSet.find_opt arg seen with 
+      | None -> 
+        let seen' = StringSet.add arg seen in 
+        (seen', (instr, true) :: acc)
+      | Some _ -> (seen, (instr, false) :: acc)
+      end 
+    | None -> (seen, (instr, false) :: acc)) 
+    (seen, []) 
+    (List.rev instrs) in 
+  out
+
+(** Implements local value numbering *)  
 let lvn (fn: func) : func =
   let instrs', _, _ =
     List.fold_left
-      (fun (instrs', env, tbl) instr -> 
+      (fun (instrs', env, tbl) (instr, is_last_write) -> 
         (* If the [instr] isn't an [op], just copy it over to the new
            list of instructions *)
         if not (is_op instr) then 
           (instr :: instrs', env, tbl)
-        else 
-          failwith "TODO: use the helper functions we defined")
+        else if has_eff instr then
+          failwith "TODO"
+        else (
+          let v = mk_value instr env in
+          let dst, _ as dest = get_dest instr |> Option.get in
+          begin match find_value v tbl with
+          | None ->
+            (* Compute a fresh value number, i.e. 1 greater than 
+               the current size of the table *)
+            let row = IntMap.cardinal tbl + 1 in 
+            (* Figure out the actual destination of the instruction:
+               - if it's not the last_write (i.e. the instr will be 
+                overwritten later), we need to generate a fresh variable name
+               - otherwise we can just keep [dst] *)
+            let actual_dest = 
+              if not is_last_write then 
+                failwith "TODO: need to generate fresh variable name"
+              else 
+                dst
+            in 
+            let updated_tbl = IntMap.add row (v, actual_dest) tbl in 
+            ([], StrMap.add dst row env, updated_tbl)
+          | Some row ->
+            (* The value already exists in the table, 
+               so we can just rebuild the instruction as a 
+               [Id var] instruction *)
+            let (_, var) = IntMap.find row tbl in
+            let ins : instr = Unop (dest, Id, var) in 
+            (ins :: instrs', StrMap.add dst row env, tbl)
+          end
+        )
+      )
       ([], StrMap.empty, IntMap.empty)
-      fn.instrs
+      (last_writes fn.instrs)
   in
   
   let instrs'' = List.rev instrs' in 

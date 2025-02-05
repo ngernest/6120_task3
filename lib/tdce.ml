@@ -8,17 +8,6 @@ module IntSet = Stdlib.Set.Make(Int)
 (** A module of maps from [string] to [int] *)
 module StrMap = Stdlib.Map.Make(String)
 
-(** Determines whether [instr] may have an effect. Instructions
-    without a destination may have an effect, as well as
-    instructions that make a call to another function *)
-let has_eff (instr : instr) : bool =
-  match get_dest instr with
-  | None -> true
-  | Some _ ->
-      match instr with
-      | Call _ -> true
-      | _ -> false
-
 (** Removes instructions from [func] whose results are never used 
     as arguments to any other instruction. 
     

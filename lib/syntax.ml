@@ -488,3 +488,15 @@ let get_dest (instr : instr) : dest option =
   let is_op : instr -> bool = function
   | Label _ -> false
   | _ -> true  
+
+(** Determines whether [instr] may have an effect. Instructions
+    without a destination may have an effect, as well as
+    instructions that make a call to another function *)
+let has_eff (instr : instr) : bool =
+  match get_dest instr with
+  | None -> true
+  | Some _ ->
+      match instr with
+      | Call _ -> true
+      | _ -> false
+    
