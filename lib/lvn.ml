@@ -42,6 +42,9 @@ module IntMap = Map.Make(Int)
 (** A module for maps whose keys are [string]s *)
 module StrMap = Map.Make(String)
 
+(** A module for sets whose elements are [string]s *)
+module StrSet = Set.Make(String)
+
 (** The type of tables, mapping each row index to a pair consisting 
     of a value tuple and the canonical variable name *)
 type tbl = (value * string) IntMap.t 
@@ -98,15 +101,34 @@ let last_writes (instrs : instr list) : (instr * bool) list =
     (List.rev instrs) in 
   out
 
+let mk_gen_fresh_var (vars: StrSet.t) () : unit -> string =
+  let count = ref (-1) in
+  fun () ->
+    let rec loop () : string =
+      count := !count + 1;
+      let var = Printf.sprintf "v%d" !count in
+      if StrSet.mem var vars then loop () else var
+    in
+    loop () |> (^) "v"
+
+let vars_of_func (fn : func) : StrSet.t =
+  List.fold_left (fun vars instr ->
+    get_dest instr
+    |> Option.map (fun (var, _) -> StrSet.add var vars)
+    |> Option.value ~default:vars
+  ) StrSet.empty fn.instrs
+
 (** Implements local value numbering *)  
 let lvn (fn: func) : func =
-  let instrs', _, _ =
+  let gen_fresh_var = mk_gen_fresh_var (vars_of_func fn) () in
+
+  let instrs, _, _ =
     List.fold_left
-      (fun (instrs', env, tbl) (instr, is_last_write) -> 
+      (fun (instrs, env, tbl) (instr, is_last_write) ->
         (* If the [instr] isn't an [op], just copy it over to the new
            list of instructions *)
         if not (is_op instr) then 
-          (instr :: instrs', env, tbl)
+          (instr :: instrs, env, tbl)
         else if has_eff instr then
           failwith "TODO"
         else (
@@ -121,29 +143,25 @@ let lvn (fn: func) : func =
                - if it's not the last_write (i.e. the instr will be 
                 overwritten later), we need to generate a fresh variable name
                - otherwise we can just keep [dst] *)
-            let actual_dest = 
-              if not is_last_write then 
-                failwith "TODO: need to generate fresh variable name"
-              else 
-                dst
-            in 
-            let updated_tbl = IntMap.add row (v, actual_dest) tbl in 
-            ([], StrMap.add dst row env, updated_tbl)
+            let dst' = if not is_last_write then gen_fresh_var () else dst in
+
+            (* TODO generate new instruction using dst', env, and tbl *)
+            let ins = failwith "TODO" in
+
+            (ins :: instrs, StrMap.add dst' row env, IntMap.add row (v, dst') tbl)
           | Some row ->
             (* The value already exists in the table, 
                so we can just rebuild the instruction as a 
                [Id var] instruction *)
             let (_, var) = IntMap.find row tbl in
             let ins : instr = Unop (dest, Id, var) in 
-            (ins :: instrs', StrMap.add dst row env, tbl)
+            (ins :: instrs, StrMap.add dst row env, tbl)
           end
         )
       )
       ([], StrMap.empty, IntMap.empty)
       (last_writes fn.instrs)
   in
-  
-  let instrs'' = List.rev instrs' in 
       
   (* TODO: implement *)
-  { fn with instrs = instrs'' }
+  { fn with instrs = List.rev instrs }
