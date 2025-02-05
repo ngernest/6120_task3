@@ -8,23 +8,6 @@ module IntSet = Stdlib.Set.Make(Int)
 (** A module of maps from [string] to [int] *)
 module StrMap = Stdlib.Map.Make(String)
 
-(** Extracts the list of arguments from an instruction
-    - If the instruction has no arguments, the empty list is returned *)
-let get_args (instr : instr) : arg list =
-  match instr with
-  | Binop (_, _, arg1, arg2) -> [ arg1; arg2 ]
-  | Unop (_, _, arg) | Br (arg, _, _) -> [ arg ]
-  | Call (_, _, args) | Print args -> args
-  | Ret (Some arg) -> [ arg ]
-  | Ret None | Nop | Label _ | Const _ | Jmp _ -> []
-
-(** Extracts the destination (if one exists) of an instruction *)
-let get_dest (instr : instr) : dest option =
-  match instr with
-  | Binop (dest, _, _, _) | Unop (dest, _, _) | Const (dest, _) -> Some dest
-  | Call (dest_opt, _, _) -> dest_opt
-  | _ -> None
-
 (** Determines whether [instr] may have an effect. Instructions
     without a destination may have an effect, as well as
     instructions that make a call to another function *)

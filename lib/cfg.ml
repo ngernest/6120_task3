@@ -7,12 +7,6 @@ let is_terminator : instr -> bool = function
   | Jmp _ | Br _ | Ret _ -> true
   | _ -> false
 
-(** Determines whether an instruction is an operation 
-  (all instructions are operations except labels) *)
-let is_op : instr -> bool = function
-  | Label _ -> false
-  | _ -> true
-
 (** The type of {i basic blocks} (an ordered list of instructions) *)
 type block = instr list [@@deriving sexp]
 
