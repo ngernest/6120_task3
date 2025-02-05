@@ -1,5 +1,5 @@
 extract = 'total_dyn_inst: (\d+)'
-benchmarks = './benchmarks/*.bril'
+benchmarks = 'benchmarks/*.bril'
 
 [runs.baseline]
 pipeline = [
@@ -7,9 +7,30 @@ pipeline = [
     "brili -p {args}",
 ]
 
-[runs.myopt]
+[runs.tdce]
 pipeline = [
     "bril2json",
-    "dune exec -- main",
+    "_build/default/bin/main.exe tdce",
+    "brili -p {args}",
+]
+
+[runs.dkp]
+pipeline = [
+    "bril2json",
+    "_build/default/bin/main.exe dkp",
+    "brili -p {args}",
+]
+
+[runs.tdce_plus]
+pipeline = [
+    "bril2json",
+    "_build/default/bin/main.exe tdce+",
+    "brili -p {args}",
+]
+
+[runs.lvn]
+pipeline = [
+    "bril2json",
+    "_build/default/bin/main.exe lvn",
     "brili -p {args}",
 ]
