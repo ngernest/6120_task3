@@ -155,13 +155,22 @@ let tdce_plus (func : func) : func =
       loop fn'' (chgd || chgd') in
   loop func true
 
-let tdce_pipeline () : unit =
+let tdce_pipeline (opt: string) : unit =
   (* Load a Bril program (as JSON) from [stdin] *)
   let json = load_json () in
   (* Convert the JSON to our typed representation *)
   let functions =
     List.map ~f:func_of_json (list_of_json (json $! "functions")) in
-  (* Apply both trivial DCE & dropping killed instructions *)
-  let updated_prog = List.map ~f:drop_killed functions in
+
+  let opt_fun =
+    if String.equal opt "dk" then
+      drop_killed
+    else if String.equal opt "tdce" then
+      trivial_dce
+    else
+      tdce_plus
+  in
+
+  let updated_prog = List.map ~f:opt_fun functions in
   (* Convert the optimization program to JSON & write to stdout *)
   Yojson.Safe.pretty_to_channel stdout (json_of_prog updated_prog)
