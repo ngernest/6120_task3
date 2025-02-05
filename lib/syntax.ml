@@ -476,6 +476,8 @@ let get_args (instr : instr) : arg list =
   | Ret (Some arg) -> [ arg ]
   | Ret None | Nop | Label _ | Const _ | Jmp _ -> []
 
+(** Extracts the list of labels used in an instruction
+    - If no labels are used, the empty list is returned *)  
 let get_lbls (instr : instr) : label list =
   match instr with
   | Br (_, lbl1, lbl2) -> [lbl1; lbl2]

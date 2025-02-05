@@ -1,4 +1,5 @@
 open Syntax
+open Helpers
 
 (** Datatype that represents any Bril operation 
     (i.e. any instruction that isn't a label) *)
@@ -102,28 +103,61 @@ let last_writes (instrs : instr list) : (instr * bool) list =
   out
 
 (** Create a new instruction from an original instruction by modifying
-   its [args] with the table of [value]s.
+    its [args] with the table of [value]s.
 *)
-let mk_instr (ins: instr) (_: dest) (op: op) (env: env) (tbl: tbl) : instr =
-  let _ = get_lbls ins in
-  let _ =
+let mk_instr (ins: instr) (dest: dest) (op: op) (env: env) (tbl: tbl) : instr =
+  let labels = get_lbls ins in
+  let args =
     List.map (fun arg ->
       match StrMap.find_opt arg env with
       | Some row -> IntMap.find row tbl |> snd
-      | None -> arg
-    ) (get_args ins)
+      | None -> arg) 
+      (get_args ins)
   in
   match op with
-  | Binop _ -> failwith "TODO: ..."
-  | Unop _ -> failwith "TODO: ..."
-  | Ret -> failwith "TODO: ..."
-  | Print -> failwith "TODO: ..."
-  | Nop -> failwith "TODO: ..."
-  | Call -> failwith "TODO: ..."
-  | Const -> failwith "TODO: ..."
-  | Jmp -> failwith "TODO: ..."
-  | Br -> failwith "TODO: ..."
+  | Binop binop -> 
+    begin match args with 
+    | [arg1; arg2] -> Binop (dest, binop, arg1, arg2) 
+    | _ -> failwith (spf "Binop %s has incorrect no. of args" 
+        (Base.Sexp.to_string_hum ([%sexp_of: binop] binop)))
+    end
+  | Unop unop -> 
+    begin match args with 
+    | [arg] -> Unop (dest, unop, arg) 
+    | _ -> failwith (spf "Unop %s has incorrect no. of args" 
+      (Base.Sexp.to_string_hum ([%sexp_of: unop] unop)))
+    end 
+  | Ret -> 
+    begin match args with 
+    | [] -> Ret None 
+    | [arg] -> Ret (Some arg)
+    | _ -> failwith "Ret has too many args"
+    end
+  | Print -> Print args 
+  | Nop -> Nop
+  | Call -> 
+    begin match ins with 
+    | Call (None, func_name, _) -> Call (None, func_name, args)
+    | Call (Some _, func_name, _) -> Call (Some dest, func_name, args)
+    | _ -> failwith "mk_instr was called with op = Call but instr != Call"
+    end
+  | Const -> 
+    begin match ins with 
+    | Const (_, literal) -> Const (dest, literal)
+    | _ -> failwith "mk_instr was called with op = Const but instr != Const"
+    end
+  | Jmp -> 
+    begin match labels with 
+    | [lbl] -> Jmp lbl 
+    | _ -> failwith "Jmp has an incorrect no. of labels"
+    end
+  | Br -> 
+    begin match labels, args with 
+    | [lbl1; lbl2], [arg] -> Br (arg, lbl1, lbl2)
+    | _ -> failwith "Br has an incorrect no. of labels / args"
+    end
 
+(** Generates a fresh variable that is not in the existing set of [vars] *)
 let mk_gen_fresh_var (vars: StrSet.t) () : unit -> string =
   let count = ref (-1) in
   fun () ->
@@ -134,6 +168,7 @@ let mk_gen_fresh_var (vars: StrSet.t) () : unit -> string =
     in
     loop () |> (^) "v"
 
+(** Extracts the set of variables used in a function *)
 let vars_of_func (fn : func) : StrSet.t =
   List.fold_left (fun vars instr ->
     get_dest instr
@@ -148,7 +183,7 @@ let lvn (fn: func) : func =
   let instrs, _, _ =
     List.fold_left
       (fun (instrs, env, tbl) (instr, is_last_write) ->
-        (* If the [instr] isn't an [op], just copy it over to the new
+         (* If the [instr] isn't an [op], just copy it over to the new
            list of instructions *)
         if not (is_op instr) then
           (instr :: instrs, env, tbl)
@@ -184,5 +219,4 @@ let lvn (fn: func) : func =
       (last_writes fn.instrs)
   in
       
-  (* TODO: implement *)
   { fn with instrs = List.rev instrs }
