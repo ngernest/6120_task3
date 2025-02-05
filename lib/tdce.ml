@@ -87,15 +87,26 @@ let drop_killed_local (block : block) : bool * block =
    List.foldi
     block
     ~init:(false, IntSet.empty, StrMap.empty)
-    ~f:(fun id (changed, to_delete, unused_assigned_at) instr -> 
+    ~f:(fun id (changed, to_delete, unused_assigned_at) instr ->
       let changed', to_delete', unused_assigned_at' =
         match get_dest instr with
         | Some (var, _) ->
-          let unused_assigned_at' = StrMap.add var id unused_assigned_at in
+          (* Add variable assigned to by instruction to set of unusued
+             variables (keeping track of where the variable was last
+             assigned at) -- as long as the instruction has no effect *)
+          let unused_assigned_at' =
+            if has_eff instr then
+              unused_assigned_at
+            else
+              StrMap.add var id unused_assigned_at
+          in
+          (* If variable had been assigned to before, delete instruction
+             that has been "killed" by this assignment *)
           begin match StrMap.find_opt var unused_assigned_at with 
           | Some id' -> true, IntSet.add id' to_delete, unused_assigned_at'
           | None -> changed, to_delete, unused_assigned_at'
           end
+        (* If instruction does not write to a variable, move on *)
         | None -> changed, to_delete, unused_assigned_at 
       in
       let args = get_args instr in 
@@ -126,16 +137,22 @@ let drop_killed_pass (func : func) : bool * func =
   in 
   (changed, { func with instrs = List.concat blocks' })
 
+(** Iteratively removes locally killed instructions, stopping when there
+    are no instructions left to remove *)
+let rec drop_killed (fn : func) : func =
+  let (changed, fn') = drop_killed_pass fn in
+  if changed then drop_killed fn' else fn'
+
 (** Invokes both [trivial_dce_pass] & [drop_killed_pass] *)  
 let tdce_plus (func : func) : func =
   let rec loop (fn : func) : bool -> func = function
     | false -> fn
     | true ->
       let (chgd, fn') = trivial_dce_pass fn in
-      let (chgd', fn'') = drop_killed_pass fn' in 
-      loop fn'' (chgd || chgd') in 
+      let (chgd', fn'') = drop_killed_pass fn' in
+      loop fn'' (chgd || chgd') in
   loop func true
-  
+
 let tdce_pipeline () : unit =
   (* Load a Bril program (as JSON) from [stdin] *)
   let json = load_json () in
@@ -143,6 +160,6 @@ let tdce_pipeline () : unit =
   let functions =
     List.map ~f:func_of_json (list_of_json (json $! "functions")) in
   (* Apply both trivial DCE & dropping killed instructions *)
-  let updated_prog = List.map ~f:trivial_dce functions in
+  let updated_prog = List.map ~f:drop_killed functions in
   (* Convert the optimization program to JSON & write to stdout *)
   Yojson.Safe.pretty_to_channel stdout (json_of_prog updated_prog)
