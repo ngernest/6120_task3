@@ -6,7 +6,6 @@ let () =
   let argv = Sys.get_argv () in
   let opt = try argv.(1) with Invalid_argument _ -> "tdce+" in
 
-
   let json = load_json () in
   (* Convert the JSON to our typed representation *)
   let functions =
@@ -14,14 +13,11 @@ let () =
   in
 
   let opt_fun =
-    if String.equal opt "tdce" then
-      Lib.Tdce.trivial_dce
-    else if String.equal opt "dk" then
-      Lib.Tdce.drop_killed
-    else if String.equal opt "tcde+" then
-      Lib.Tdce.tdce_plus
-    else
-      Lib.Lvn.lvn
+    match opt with
+    | "tdce" -> Lib.Tdce.trivial_dce
+    | "dkp" -> Lib.Tdce.drop_killed
+    | "tdce+" -> Lib.Tdce.tdce_plus
+    | _ -> Lib.Lvn.lvn
   in
 
   let updated_prog = List.map ~f:opt_fun functions in
