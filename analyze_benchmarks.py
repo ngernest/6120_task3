@@ -65,7 +65,7 @@ if __name__ == '__main__':
     # Plot full
     plt.scatter(x, results_full, color="blue", label="full", zorder=2)
 
-    plt.title("Percentage reduction in dynamic instruction count")
+    plt.title("Percentage reduction in dynamic instruction count (higher is better)")
     plt.xticks(x, benchmarks, rotation=45, ha="right")
     
     # Display y-axis as double-digit percentages
