@@ -105,7 +105,7 @@ let last_writes (instrs : instr list) : (instr * bool) list =
 
 (** Create a new instruction from an original instruction by modifying
     its [arg]s with the table of [value]s, and optionally updating its
-    destination.
+    destination (via the optional argument [dest_opt]).
 *)
 let mk_instr ?dest:(dest_opt=None) (ins: instr) (env: env) (tbl: tbl) : instr =
   (* Search for argument's canonical variable name in table *)
@@ -152,6 +152,12 @@ let vars_of_func (fn : func) : StrSet.t =
     |> Option.value ~default:vars
   ) StrSet.empty fn.instrs
 
+(** Determines whether an instruction's destination can be overwritten:
+    - If it has no destination, then it's an effect instruction,
+      so we can't overwrite it
+    - If it's a function call, we also can't overwrite it 
+      (since function calls might have side effects)
+    - Otherwise, we can overwrite it *)  
 let is_rewriteable (ins: instr) : bool =
   match get_dest ins with
   | None -> false
