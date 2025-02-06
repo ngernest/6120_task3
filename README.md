@@ -32,3 +32,8 @@ reduces the no. of dynamic instructions executed in the benchmark files, run:
 $ brench brench.toml
 ```
 
+## Plotting the optimized results 
+We have a Python script ([`analyze_benchmarks.py`](./analyze_benchmarks.py)) which plots the results of each optimization in `plot.png`. The script can be run as follows: 
+```bash 
+$ uv run analyze_benchmarks.py
+```
