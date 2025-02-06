@@ -1,9 +1,8 @@
-# ARGS: lvn
 @main {
   a: int = const 3;
   b: int = const 2;
   mul1: int = mul a b;
-  mul2: int = mul a b;
-  sum: int = add mul1 mul2;
+  mul2: int = id mul1;
+  sum: int = add mul1 mul1;
   print sum;
 }
