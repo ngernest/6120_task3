@@ -4,7 +4,7 @@ open Lib.Syntax
 
 let () =
   let argv = Sys.get_argv () in
-  let opt = try argv.(1) with Invalid_argument _ -> "tdce+" in
+  let opt = try argv.(1) with Invalid_argument _ -> "lvn" in
 
   let json = load_json () in
   (* Convert the JSON to our typed representation *)
