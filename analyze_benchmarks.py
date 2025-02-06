@@ -1,6 +1,8 @@
-# Displays brench results as evidence that LVN actually optimizes programs
+# Displays Brench results as evidence that DCE/DKP/LVN 
+# actually optimizes programs
 
 import matplotlib.pyplot as plt
+import matplotlib.ticker as mtick
 
 def compute_percentage(opt, baseline):
     result = abs(baseline - opt) / baseline
@@ -35,7 +37,6 @@ if __name__ == '__main__':
         lvn_result = next(result for (bench_name, run, result) in data if bench_name == benchmark and run == "lvn")
         full_result = next(result for (bench_name, run, result) in data if bench_name == benchmark and run == "full")
         
-        # results_baseline.append(compute_percentage(baseline_result, baseline_result))
         results_full.append(compute_percentage(full_result, baseline_result))
         results_tdce.append(compute_percentage(tdce_result, baseline_result))
         results_tdce_plus.append(compute_percentage(tdce_plus_result, baseline_result))
@@ -47,14 +48,12 @@ if __name__ == '__main__':
             num_optimized += 1
         total += 1
 
-    print(f"{num_optimized}/{total} benchmarks optimized")
+    print(f"Full optimization: optimized {num_optimized}/{total} benchmarks")
 
     x = range(len(benchmarks))
     plt.figure(figsize=(10, 6))
 
-    # Plot baseline
-    # plt.scatter(x, results_baseline, color="red", label="baseline", zorder=2)
-    
+    # Plot baseline    
     plt.scatter(x, results_tdce, color="green", label="tdce", zorder=2)
 
     plt.scatter(x, results_tdce_plus, color="purple", label="tdce+", zorder=2)
@@ -68,6 +67,10 @@ if __name__ == '__main__':
 
     plt.title("Percentage reduction in dynamic instruction count")
     plt.xticks(x, benchmarks, rotation=45, ha="right")
+    
+    # Display y-axis as double-digit percentages
+    plt.gca().yaxis.set_major_formatter(mtick.PercentFormatter(1))
+    
     plt.xlabel("Benchmarks")
     plt.ylabel("Percentage")
     plt.legend()

@@ -26,14 +26,15 @@ To test (using [Turnt](https://github.com/cucapra/turnt)) that our transformatio
 $ turnt --diff bril_tests/*.bril
 ```
 
-The [`benchmarks`](./benchmarks/) subdirectory contains the benchmark files from the main Bril repo. To test using Brench that our transformation correctly 
+The [`benchmarks`](./benchmarks/) subdirectory contains the benchmark files from the main Bril repo. To test using [Brench](https://capra.cs.cornell.edu/bril/tools/brench.html) that our transformation correctly 
 reduces the no. of dynamic instructions executed in the benchmark files, run:
 ```bash
 $ brench brench.toml
 ```
 
 ## Plotting the optimized results 
-We have a Python script ([`analyze_benchmarks.py`](./analyze_benchmarks.py)) which plots the results of each optimization in `plot.png`. The script can be run as follows: 
+We have a Python script ([`analyze_benchmarks.py`](./analyze_benchmarks.py)) which plots the results of each optimization in [`plot.png`](./plot.png). 
+To execute the script, [install uv](https://docs.astral.sh/uv/getting-started/installation/) and run:
 ```bash 
 $ uv run analyze_benchmarks.py
 ```
