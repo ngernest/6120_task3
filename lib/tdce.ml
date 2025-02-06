@@ -119,15 +119,20 @@ let rec drop_killed (fn : func) : func =
 (** Invokes both [trivial_dce_pass] & [drop_killed_pass], alternating
     between both optimizations until convergence is reached *)
 let tdce_plus : func -> func =
+  let choose_opt : bool -> func -> (bool * func) = function
+    | true -> drop_killed_pass
+    | false -> trivial_dce_pass
+  in
   let rec loop (tdce_last: bool) (fn: func) : func =
-    let (changed, fn') =
-      if tdce_last then
-        drop_killed_pass fn
-      else trivial_dce_pass fn
-    in
+    let (changed, fn') = choose_opt tdce_last fn in
     if changed then
       loop (not tdce_last) fn'
     else
-      fn'
+      let tdce_last' = not tdce_last in
+      let (changed', fn'') = choose_opt tdce_last' fn' in
+      if changed' then
+        loop (not tdce_last') fn''
+      else
+        fn''
   in
   loop false
