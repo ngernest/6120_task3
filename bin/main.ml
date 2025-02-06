@@ -4,7 +4,7 @@ open Lib.Syntax
 
 let () =
   let argv = Sys.get_argv () in
-  let opt = try argv.(1) with Invalid_argument _ -> "lvn" in
+  let opt = try argv.(1) with Invalid_argument _ -> "full" in
 
   let json = load_json () in
   (* Convert the JSON to our typed representation *)
@@ -17,7 +17,8 @@ let () =
     | "tdce" -> Lib.Tdce.trivial_dce
     | "dkp" -> Lib.Tdce.drop_killed
     | "tdce+" -> Lib.Tdce.tdce_plus
-    | _ -> Lib.Lvn.lvn
+    | "lvn" -> Lib.Lvn.lvn
+    | _ -> Lib.Full.full
   in
 
   let updated_prog = List.map ~f:opt_fun functions in
