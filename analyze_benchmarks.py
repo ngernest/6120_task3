@@ -2,6 +2,10 @@
 
 import matplotlib.pyplot as plt
 
+def compute_percentage(opt, baseline):
+    result = abs(baseline - opt) / baseline
+    return result
+
 if __name__ == '__main__':
 
     data = []
@@ -31,12 +35,12 @@ if __name__ == '__main__':
         lvn_result = next(result for (bench_name, run, result) in data if bench_name == benchmark and run == "lvn")
         full_result = next(result for (bench_name, run, result) in data if bench_name == benchmark and run == "full")
         
-        results_baseline.append(baseline_result)
-        results_full.append(full_result)
-        results_tdce.append(tdce_result)
-        results_tdce_plus.append(tdce_plus_result)
-        results_dkp.append(dkp_result)
-        results_lvn.append(lvn_result)
+        # results_baseline.append(compute_percentage(baseline_result, baseline_result))
+        results_full.append(compute_percentage(full_result, baseline_result))
+        results_tdce.append(compute_percentage(tdce_result, baseline_result))
+        results_tdce_plus.append(compute_percentage(tdce_plus_result, baseline_result))
+        results_dkp.append(compute_percentage(dkp_result, baseline_result))
+        results_lvn.append(compute_percentage(lvn_result, baseline_result))
 
 
         if full_result < baseline_result: 
@@ -49,7 +53,7 @@ if __name__ == '__main__':
     plt.figure(figsize=(10, 6))
 
     # Plot baseline
-    plt.scatter(x, results_baseline, color="red", label="Baseline", zorder=2)
+    # plt.scatter(x, results_baseline, color="red", label="baseline", zorder=2)
     
     plt.scatter(x, results_tdce, color="green", label="tdce", zorder=2)
 
@@ -60,15 +64,14 @@ if __name__ == '__main__':
     plt.scatter(x, results_lvn, color="orange", label="lvn", zorder=2)
     
     # Plot full
-    plt.scatter(x, results_full, color="blue", label="Full", zorder=2)
+    plt.scatter(x, results_full, color="blue", label="full", zorder=2)
 
+    plt.title("Percentage reduction in dynamic instruction count")
     plt.xticks(x, benchmarks, rotation=45, ha="right")
     plt.xlabel("Benchmarks")
-    plt.ylabel("No. of dynamic instructions")
+    plt.ylabel("Percentage")
     plt.legend()
     plt.grid(zorder=1, linestyle="--", alpha=0.6)
-
-    plt.ylim(0, 1000)
 
     plt.tight_layout()
     plt.savefig('plot.png')
