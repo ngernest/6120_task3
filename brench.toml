@@ -34,3 +34,10 @@ pipeline = [
     "_build/default/bin/main.exe lvn",
     "brili -p {args}",
 ]
+
+[runs.full]
+pipeline = [
+    "bril2json",
+    "_build/default/bin/main.exe full",
+    "brili -p {args}",
+]
